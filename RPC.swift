@@ -14,15 +14,14 @@ class RPC {
     private init() {}
         
     func command(method: BTC_CLI_COMMAND, param: Any, completion: @escaping ((response: Any?, errorDesc: String?)) -> Void) {
-        let rpcuser = "user"
-        let rpcpassword = "password"
-        let host = "127.0.0.1"
-        let port = "18332"
+        let rpcuser = UserDefaults.standard.object(forKey: "rpcuser") as? String ?? "user"
+        let rpcpassword = UserDefaults.standard.object(forKey: "rpcpassword") as? String ?? "password"
+        let host = UserDefaults.standard.object(forKey: "host") as? String ?? "127.0.0.1"
+        let port = UserDefaults.standard.object(forKey: "port") as? String ?? "18332"
         
         guard let url = URL(string: "http://\(rpcuser):\(rpcpassword)@\(host):\(port)") else {
             fatalError("Unable to convert node credentials to a valid URL.")
         }
-        
         
         let loginString = String(format: "%@:%@", rpcuser, rpcpassword)
         let loginData = loginString.data(using: String.Encoding.utf8)!
