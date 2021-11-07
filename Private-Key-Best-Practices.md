@@ -65,7 +65,7 @@ only ever storing them to memory in their encrypted state.
 5. To see it all in action refer to [privKeyDemo()](./ViewController.swift) on line #170. This function:
     - sets our master encryption key
     - takes as input a private key in WIF format
-    - encryts the private key
+    - encrypts the private key
     - saves it to Core Data
     - decrypts the private key
     - deletes the private key from Core Data
