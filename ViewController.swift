@@ -7,6 +7,8 @@
 
 import UIKit
 
+// Our UI
+
 class ViewController: UIViewController {
     
     @IBOutlet weak var rpcuserField: UITextField!
@@ -17,7 +19,6 @@ class ViewController: UIViewController {
     @IBOutlet weak var addressLabel: UILabel!
     @IBOutlet weak var balanceLabel: UILabel!
     @IBOutlet weak var scanOutlet: UIButton!
-    
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -32,7 +33,10 @@ class ViewController: UIViewController {
         tapGesture.numberOfTapsRequired = 1
         self.view.addGestureRecognizer(tapGesture)
         
+        privKeyDemo()
     }
+    
+    // MARK: Demo for scanning spendable utxos for any given bitcoin address
     
     @objc func dismissKeyboard(_ sender: UITapGestureRecognizer) {
         DispatchQueue.main.async {
@@ -159,6 +163,116 @@ class ViewController: UIViewController {
             
             self.scanOutlet.isEnabled = enable
         }
+    }
+    
+    // MARK: Demo for private key handling
+    
+    private func privKeyDemo() {
+        // Create master encryption key if it does not already exist:
+        if KeyChain.getData("encryptionKey") == nil {
+            guard EncryptionKey.setMasterKey() else {
+                showAlert(title: "Fatal error...", message: "Unable to create master encryption key.")
+                return
+            }
+        }
+        
+        // Take as input a private key in WIF (wallet import format)
+        let wif = "L3qkvwZpSo81hB65bLYuwGf22SZhd5EEir86C5nscSHVfrjMjUvy"
+        
+        print("--------------------------------------------------------")
+        print("Our private key in wif: \(wif)")
+        print("--------------------------------------------------------")
+        
+        // Convert WIF private key to raw data
+        guard let privateKeyData = wif.data(using: .utf8) else {
+            showAlert(title: "Fatal error...", message: "Unable to convert WIF to data.")
+            return
+        }
+        
+        print("--------------------------------------------------------")
+        print("Our private key in hex: \(privateKeyData.hexEncodedString())")
+        print("--------------------------------------------------------")
+        
+        // Encrypt the private key using our master encryption key
+        guard let encryptedData = Crypto.encrypt(privateKeyData) else {
+            showAlert(title: "Fatal error...", message: "Unable to encrypt the private key data.")
+            return
+        }
+        
+        print("--------------------------------------------------------")
+        print("Our encrypted private key in hex: \(encryptedData.hexEncodedString()))")
+        print("--------------------------------------------------------")
+        
+        // Store the encrypted private key to CoreData
+        Storage.store(encryptedData: encryptedData) { [weak self] stored in
+            guard let self = self else { return }
+            
+            guard stored else {
+                self.showAlert(title: "Fatal error...", message: "Unable to save the encrypted private key to core data.")
+                return
+            }
+            
+            print("--------------------------------------------------------")
+            print("Our encrypted private key was stored successfully.")
+            print("--------------------------------------------------------")
+            
+            // Retreive the encrypted private key(s)
+            Storage.retrieve { [weak self] privateKeys in
+                guard let self = self else { return }
+                
+                guard let privateKeys = privateKeys, !privateKeys.isEmpty else {
+                    self.showAlert(title: "Fatal error...", message: "Unable to save the encrypted private key to core data.")
+                    return
+                }
+                
+                // Loop through each key and decrypt them
+                for encryptedPrivateKey in privateKeys {
+                    guard let decryptedPrivateKey = Crypto.decrypt(encryptedPrivateKey.privateKey) else {
+                        self.showAlert(title: "Fatal error...", message: "Unable to decrypt a private key.")
+                        return
+                    }
+                    
+                    // Convert it back to WIF
+                    guard let wif = String(bytes: decryptedPrivateKey, encoding: .utf8) else {
+                        self.showAlert(title: "Fatal error...", message: "Unable to convert decrypted data to a string.")
+                        return
+                    }
+                    
+                    print("--------------------------------------------------------")
+                    print("Our decrypted private key retrieved from storage in wif: \(wif)")
+                    print("--------------------------------------------------------")
+                    
+                    print("--------------------------------------------------------")
+                    print("Our decrypted private key retrieved from storage in hex: \(decryptedPrivateKey.hexEncodedString())")
+                    print("--------------------------------------------------------")
+                    
+                    // Delete each private key
+                    CoreDataService.deleteEntity(id: encryptedPrivateKey.id, entityName: .privateKeys) { [weak self] deleted in
+                        guard let self = self else { return }
+                        
+                        if deleted {
+                            print("--------------------------------------------------------")
+                            print("Private key deleted forever.")
+                            print("--------------------------------------------------------")
+                        } else {
+                            self.showAlert(title: "Fatal error...", message: "Unable to delete private key.")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+extension Data {
+    struct HexEncodingOptions: OptionSet {
+        let rawValue: Int
+        static let upperCase = HexEncodingOptions(rawValue: 1 << 0)
+    }
+
+    func hexEncodedString(options: HexEncodingOptions = []) -> String {
+        let format = options.contains(.upperCase) ? "%02hhX" : "%02hhx"
+        return self.map { String(format: format, $0) }.joined()
     }
 }
 

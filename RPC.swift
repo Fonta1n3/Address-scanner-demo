@@ -7,6 +7,10 @@
 
 import Foundation
 
+// Our class for communicating to bitcoin-cli.
+
+// MARK: THIS IS CLEARNET ONLY, USE LOCAL HOST OR A NODE DESIGNATED FOR TESTING.
+
 class RPC {
     
     static let sharedInstance = RPC()
